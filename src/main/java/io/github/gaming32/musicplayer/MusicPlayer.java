@@ -56,6 +56,7 @@ public class MusicPlayer extends JavaPlugin implements Listener {
     private static final Map<String, CompletableFuture<PlayerPackInfo>> PACK_INFO_CACHE = new ConcurrentHashMap<>();
 
     private Path musicDir;
+    private String ffmpegPath;
 
     private HttpServer server;
 
@@ -83,6 +84,8 @@ public class MusicPlayer extends JavaPlugin implements Listener {
             setEnabled(false);
             return;
         }
+
+        ffmpegPath = getConfig().getString("ffmpeg-path");
 
         final InetSocketAddress address = new InetSocketAddress(
             getConfig().getString("http.host"),
@@ -241,7 +244,7 @@ public class MusicPlayer extends JavaPlugin implements Listener {
     private void checkForFfmpeg() {
         getSLF4JLogger().info("Checking for ffmpeg installation");
         try {
-            final Process process = new ProcessBuilder("ffmpeg", "-version")
+            final Process process = new ProcessBuilder(ffmpegPath, "-version")
                 .redirectError(ProcessBuilder.Redirect.INHERIT)
                 .start();
             if (process.waitFor() != 0) {
@@ -346,7 +349,7 @@ public class MusicPlayer extends JavaPlugin implements Listener {
                 } catch (UnsupportedOperationException ignored) {
                 }
                 final Process process = new ProcessBuilder(
-                    "ffmpeg", "-y", "-i", sourcePath.toString(), "-vn", tempFile.toString()
+                    ffmpegPath, "-y", "-i", sourcePath.toString(), "-vn", tempFile.toString()
                 ).start();
                 if (process.waitFor() != 0) {
                     Files.deleteIfExists(tempFile);
