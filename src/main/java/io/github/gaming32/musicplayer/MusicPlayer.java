@@ -31,20 +31,13 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.net.InetSocketAddress;
 import java.net.URI;
-import java.nio.file.ClosedWatchServiceException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardWatchEventKinds;
-import java.nio.file.WatchEvent;
-import java.nio.file.WatchKey;
-import java.nio.file.WatchService;
-import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -68,9 +61,8 @@ public class MusicPlayer extends JavaPlugin implements Listener {
 
     private String ffmpegVersion;
 
-    private final Set<String> songsAutocomplete = new CopyOnWriteArraySet<>();
-    private WatchService watchService;
-    private Thread watchThread;
+    private Set<String> songsAutocomplete = null;
+    private long lastSongsRefresh = 0L;
 
     @Override
     public void onEnable() {
@@ -111,26 +103,7 @@ public class MusicPlayer extends JavaPlugin implements Listener {
         playMusicCommand = getCommand("playmusic");
         Bukkit.getPluginManager().registerEvents(this, this);
 
-        songsAutocomplete.clear();
-        try (Stream<Path> stream = Files.find(musicDir, Integer.MAX_VALUE, (p, a) -> a.isRegularFile())) {
-            stream.map(path -> musicDir.relativize(path).toString().replace(path.getFileSystem().getSeparator(), "/"))
-                .forEach(songsAutocomplete::add);
-        } catch (IOException e) {
-            getSLF4JLogger().warn("Failed to populate songs list. Autocomplete may be limited.");
-        }
-
         checkForFfmpeg();
-
-        try {
-            watchService = musicDir.getFileSystem().newWatchService();
-            musicDir.register(watchService, StandardWatchEventKinds.ENTRY_CREATE, StandardWatchEventKinds.ENTRY_DELETE);
-
-            watchThread = new Thread(this::watchThread);
-            watchThread.setDaemon(true);
-            watchThread.start();
-        } catch (IOException e) {
-            getSLF4JLogger().warn("Failed to start watchService. Autocomplete may be limited.", e);
-        }
     }
 
     @Override
@@ -141,14 +114,6 @@ public class MusicPlayer extends JavaPlugin implements Listener {
             server = null;
             getSLF4JLogger().info("HTTP server stopped");
         }
-        if (watchService != null) {
-            try {
-                watchService.close();
-            } catch (IOException e) {
-                getSLF4JLogger().error("Failed to close watchService", e);
-            }
-        }
-        watchThread = null;
     }
 
     @EventHandler
@@ -158,7 +123,9 @@ public class MusicPlayer extends JavaPlugin implements Listener {
                 .then(literal("play")
                     .requires(s -> s.getBukkitSender().hasPermission("musicplayer.play"))
                     .then(argument("path", StringArgumentType.greedyString())
-                        .suggests((context, builder) -> SharedSuggestionProvider.suggest(songsAutocomplete.stream(), builder))
+                        .suggests((context, builder) -> getSongsList().thenApply(
+                            songs -> SharedSuggestionProvider.suggest(songs.stream(), builder)
+                        ))
                         .executes(this::playMusic)
                     )
                 )
@@ -263,38 +230,25 @@ public class MusicPlayer extends JavaPlugin implements Listener {
         }
     }
 
-    private void watchThread() {
-        try {
-            while (true) {
-                final WatchKey key = watchService.take();
-                final Set<String> toAdd = new HashSet<>();
-                final Set<String> toRemove = new HashSet<>();
-                for (final WatchEvent<?> event : key.pollEvents()) {
-                    if (!(event.context() instanceof Path path)) continue;
-                    final String pathString = path.toString().replace(path.getFileSystem().getSeparator(), "/");
-                    if (event.kind() == StandardWatchEventKinds.ENTRY_CREATE) {
-                        toAdd.add(pathString);
-                        toRemove.remove(pathString);
-                    } else if (event.kind() == StandardWatchEventKinds.ENTRY_DELETE) {
-                        toAdd.remove(pathString);
-                        toRemove.add(pathString);
-                    }
-                }
-                if (!toRemove.isEmpty()) {
-                    songsAutocomplete.removeAll(toRemove);
-                }
-                if (!toAdd.isEmpty()) {
-                    songsAutocomplete.addAll(toAdd);
-                }
-            }
-        } catch (ClosedWatchServiceException ignored) {
-        } catch (InterruptedException e) {
-            getSLF4JLogger().error("Unexpected interrupt of watchThread", e);
-            try {
-                watchService.close();
-            } catch (IOException e1) {
-                getSLF4JLogger().error("Failed to close watchService", e1);
-            }
+    private CompletableFuture<Set<String>> getSongsList() {
+        final long time = System.currentTimeMillis();
+        if (time - lastSongsRefresh > 10_000L || songsAutocomplete == null) {
+            lastSongsRefresh = time;
+            return CompletableFuture.supplyAsync(() -> {
+                refreshSongsList();
+                return songsAutocomplete;
+            });
+        }
+        return CompletableFuture.completedFuture(songsAutocomplete);
+    }
+
+    private void refreshSongsList() {
+        try (Stream<Path> stream = Files.find(musicDir, Integer.MAX_VALUE, (p, a) -> a.isRegularFile())) {
+            songsAutocomplete = stream
+                .map(path -> musicDir.relativize(path).toString().replace(path.getFileSystem().getSeparator(), "/"))
+                .collect(Collectors.toSet());
+        } catch (IOException e) {
+            getSLF4JLogger().warn("Failed to populate songs list. Autocomplete may be limited.");
         }
     }
 
