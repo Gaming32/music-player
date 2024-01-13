@@ -321,12 +321,7 @@ public class MusicPlayer extends JavaPlugin implements Listener {
                 }
                 return null;
             }
-            runOnMainThread(() -> {
-                if (sender != null) {
-                    sender.sendMessage(Component.text("Now playing " + path, NamedTextColor.GREEN));
-                }
-                playSong(players, result);
-            });
+            runOnMainThread(() -> playSong(players, result));
             return null;
         });
         return true;
@@ -403,6 +398,7 @@ public class MusicPlayer extends JavaPlugin implements Listener {
                     }
                 })
             );
+            player.sendMessage(Component.text("Now playing " + packInfo.path(), NamedTextColor.GREEN));
         } catch (Exception e) {
             getSLF4JLogger().error("Couldn't play song {} for player {}", packInfo.path(), player, e);
         }
