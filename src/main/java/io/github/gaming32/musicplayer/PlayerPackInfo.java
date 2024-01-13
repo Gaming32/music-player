@@ -34,7 +34,7 @@ public record PlayerPackInfo(String path, UUID uuid, byte[] data, String hash) {
         {
             "custom_music.%1$s": {
                 "sounds": [
-                    "wav-player:%1$s"
+                    "music-player:%1$s"
                 ]
             }
         }
@@ -49,17 +49,17 @@ public record PlayerPackInfo(String path, UUID uuid, byte[] data, String hash) {
 
                 zos.putNextEntry(new ZipEntry("assets/"));
                 zos.closeEntry();
-                zos.putNextEntry(new ZipEntry("assets/wav-player/"));
+                zos.putNextEntry(new ZipEntry("assets/music-player/"));
                 zos.closeEntry();
 
-                zos.putNextEntry(new ZipEntry("assets/wav-player/sounds.json"));
+                zos.putNextEntry(new ZipEntry("assets/music-player/sounds.json"));
                 zos.write(SOUNDS_JSON.formatted(uuid).getBytes(StandardCharsets.UTF_8));
                 zos.closeEntry();
 
-                zos.putNextEntry(new ZipEntry("assets/wav-player/sounds/"));
+                zos.putNextEntry(new ZipEntry("assets/music-player/sounds/"));
                 zos.closeEntry();
 
-                zos.putNextEntry(new ZipEntry("assets/wav-player/sounds/" + uuid + ".ogg"));
+                zos.putNextEntry(new ZipEntry("assets/music-player/sounds/" + uuid + ".ogg"));
                 Files.copy(fsPath, zos);
                 zos.closeEntry();
             }

@@ -1,2 +1,2 @@
-rootProject.name = "wav-player"
+rootProject.name = "music-player"
 
