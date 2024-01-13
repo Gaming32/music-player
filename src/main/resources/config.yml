@@ -1,0 +1,6 @@
+music-dir: music
+http:
+  host: 0.0.0.0
+  port: 8090
+  external-uri: "http://{}:8090/"
+  fallback-uri-host: localhost

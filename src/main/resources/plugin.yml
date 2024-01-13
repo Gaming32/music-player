@@ -1,0 +1,20 @@
+name: music-player
+description: Music Player
+version: $version
+main: io.github.gaming32.musicplayer.MusicPlayer
+author: Gaming32
+api-version: 1.20
+commands:
+  musicplayer:
+    description: Top-level command for Music Player
+    usage: "/musicplayer <play|ffmpeg>"
+  playmusic:
+    description: Play an audio file
+    usage: "/playmusic <path>"
+permissions:
+  musicplayer.play:
+    description: If a user can play music on the server
+    default: true
+  musicplayer.ffmpeg:
+    description: Check if ffmpeg is installed on the server
+    default: op
