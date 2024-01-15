@@ -343,7 +343,7 @@ public class MusicPlayer extends JavaPlugin implements Listener {
                     if (status.intermediate()) return;
                     switch (status) {
                         case SUCCESSFULLY_LOADED -> audience.playSound(Sound.sound(
-                            Key.key("music-player", "custom_music." + packInfo.uuid()),
+                            Key.key("music-player", "custom_music." + packInfo.path().length()),
                             Sound.Source.RECORD, 1f, 1f
                         ));
                         case DECLINED -> audience.sendMessage(Component.text(

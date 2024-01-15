@@ -43,7 +43,6 @@ public record PlayerPackInfo(String path, UUID uuid, byte[] data, String hash) {
 
     public static PlayerPackInfo create(Path fsPath, String path) {
         return create(path, out -> {
-            final UUID pathUuid = UUID.nameUUIDFromBytes(path.getBytes(StandardCharsets.UTF_8));
             try (final ZipOutputStream zos = new ZipOutputStream(out)) {
                 zos.putNextEntry(new ZipEntry("pack.mcmeta"));
                 zos.write(PACK_MCMETA.formatted(path).getBytes(StandardCharsets.UTF_8));
@@ -55,13 +54,13 @@ public record PlayerPackInfo(String path, UUID uuid, byte[] data, String hash) {
                 zos.closeEntry();
 
                 zos.putNextEntry(new ZipEntry("assets/music-player/sounds.json"));
-                zos.write(SOUNDS_JSON.formatted(pathUuid).getBytes(StandardCharsets.UTF_8));
+                zos.write(SOUNDS_JSON.formatted(path.length()).getBytes(StandardCharsets.UTF_8));
                 zos.closeEntry();
 
                 zos.putNextEntry(new ZipEntry("assets/music-player/sounds/"));
                 zos.closeEntry();
 
-                zos.putNextEntry(new ZipEntry("assets/music-player/sounds/" + pathUuid + ".ogg"));
+                zos.putNextEntry(new ZipEntry("assets/music-player/sounds/" + path.length() + ".ogg"));
                 Files.copy(fsPath, zos);
                 zos.closeEntry();
             }
