@@ -35,7 +35,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Map;
 import java.util.Set;
-import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
@@ -291,10 +290,9 @@ public class MusicPlayer extends JavaPlugin implements Listener {
     private CompletableFuture<PlayerPackInfo> createPackInfo0(String path) {
         return CompletableFuture.supplyAsync(() -> {
             final Path sourcePath = musicDir.resolve(path).toAbsolutePath();
-            final UUID uuid = UUID.randomUUID();
             if (path.endsWith(".ogg")) {
                 // No conversion necessary
-                return PlayerPackInfo.create(sourcePath, uuid, path);
+                return PlayerPackInfo.create(sourcePath, path);
             }
             try {
                 final Path tempFile = Files.createTempFile("music-player", ".ogg").toAbsolutePath();
@@ -309,7 +307,7 @@ public class MusicPlayer extends JavaPlugin implements Listener {
                     Files.deleteIfExists(tempFile);
                     throw new IllegalStateException("ffmpeg conversion failed with exit code " + process.exitValue());
                 }
-                return PlayerPackInfo.create(tempFile, uuid, path);
+                return PlayerPackInfo.create(tempFile, path);
             } catch (RuntimeException e) {
                 throw e;
             } catch (IOException e) {

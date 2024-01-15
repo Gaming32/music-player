@@ -1,5 +1,6 @@
 package io.github.gaming32.musicplayer;
 
+import com.google.common.hash.HashCode;
 import com.google.common.hash.Hashing;
 import com.google.common.hash.HashingOutputStream;
 import org.apache.commons.io.function.IOConsumer;
@@ -40,8 +41,9 @@ public record PlayerPackInfo(String path, UUID uuid, byte[] data, String hash) {
         }
         """;
 
-    public static PlayerPackInfo create(Path fsPath, UUID uuid, String path) {
-        return create(path, uuid, out -> {
+    public static PlayerPackInfo create(Path fsPath, String path) {
+        return create(path, out -> {
+            final UUID pathUuid = UUID.nameUUIDFromBytes(path.getBytes(StandardCharsets.UTF_8));
             try (final ZipOutputStream zos = new ZipOutputStream(out)) {
                 zos.putNextEntry(new ZipEntry("pack.mcmeta"));
                 zos.write(PACK_MCMETA.formatted(path).getBytes(StandardCharsets.UTF_8));
@@ -53,21 +55,21 @@ public record PlayerPackInfo(String path, UUID uuid, byte[] data, String hash) {
                 zos.closeEntry();
 
                 zos.putNextEntry(new ZipEntry("assets/music-player/sounds.json"));
-                zos.write(SOUNDS_JSON.formatted(uuid).getBytes(StandardCharsets.UTF_8));
+                zos.write(SOUNDS_JSON.formatted(pathUuid).getBytes(StandardCharsets.UTF_8));
                 zos.closeEntry();
 
                 zos.putNextEntry(new ZipEntry("assets/music-player/sounds/"));
                 zos.closeEntry();
 
-                zos.putNextEntry(new ZipEntry("assets/music-player/sounds/" + uuid + ".ogg"));
+                zos.putNextEntry(new ZipEntry("assets/music-player/sounds/" + pathUuid + ".ogg"));
                 Files.copy(fsPath, zos);
                 zos.closeEntry();
             }
         });
     }
 
-    @SuppressWarnings("UnstableApiUsage")
-    public static PlayerPackInfo create(String path, UUID uuid, IOConsumer<OutputStream> contents) {
+    @SuppressWarnings({"UnstableApiUsage", "deprecation"})
+    public static PlayerPackInfo create(String path, IOConsumer<OutputStream> contents) {
         final ByteArrayOutputStream baos = new ByteArrayOutputStream();
         final HashingOutputStream hos = new HashingOutputStream(Hashing.sha1(), baos);
         try {
@@ -75,6 +77,7 @@ public record PlayerPackInfo(String path, UUID uuid, byte[] data, String hash) {
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
-        return new PlayerPackInfo(path, uuid, baos.toByteArray(), hos.hash().toString());
+        final HashCode hashCode = hos.hash();
+        return new PlayerPackInfo(path, UuidUtil.uuidFromHashCode(hashCode), baos.toByteArray(), hashCode.toString());
     }
 }
