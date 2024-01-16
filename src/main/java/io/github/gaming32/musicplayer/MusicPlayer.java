@@ -277,7 +277,7 @@ public class MusicPlayer extends JavaPlugin implements Listener {
                 }
                 return null;
             }
-            runOnMainThread(() -> playSong(players, result));
+            runOnMainThread(() -> playSong(players, result, sender != null ? sender.name() : null));
             return null;
         });
         return true;
@@ -318,14 +318,14 @@ public class MusicPlayer extends JavaPlugin implements Listener {
         });
     }
 
-    public void playSong(Iterable<? extends Player> players, PlayerPackInfo packInfo) {
+    public void playSong(Iterable<? extends Player> players, PlayerPackInfo packInfo, @Nullable Component sender) {
         for (final Player player : players) {
-            playSong(player, packInfo);
+            playSong(player, packInfo, sender);
         }
     }
 
     @SuppressWarnings("PatternValidation")
-    public void playSong(Player player, PlayerPackInfo packInfo) {
+    public void playSong(Player player, PlayerPackInfo packInfo, @Nullable Component sender) {
         try {
             final String escapedPath = Splitter.on('/')
                 .splitToStream(packInfo.path())
@@ -353,7 +353,15 @@ public class MusicPlayer extends JavaPlugin implements Listener {
                     }
                 })
             );
-            player.sendMessage(Component.text("Now playing " + packInfo.path(), NamedTextColor.GREEN));
+            if (sender != null) {
+                player.sendMessage(Component.empty()
+                    .color(NamedTextColor.GREEN)
+                    .append(sender)
+                    .append(Component.text(" played " + packInfo.path()))
+                );
+            } else {
+                player.sendMessage(Component.text("Now playing " + packInfo.path(), NamedTextColor.GREEN));
+            }
         } catch (Exception e) {
             getSLF4JLogger().error("Couldn't play song {} for player {}", packInfo.path(), player, e);
         }
