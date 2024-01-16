@@ -46,7 +46,6 @@ import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-@SuppressWarnings("UnstableApiUsage")
 public class MusicPlayer extends JavaPlugin implements Listener {
     private static final Map<String, CompletableFuture<PlayerPackInfo>> PACK_INFO_CACHE = new ConcurrentHashMap<>();
 
@@ -77,7 +76,7 @@ public class MusicPlayer extends JavaPlugin implements Listener {
             Files.createDirectories(musicDir);
         } catch (IOException e) {
             logger.error("Failed to create music-dir", e);
-            setEnabled(false);
+            Bukkit.getPluginManager().disablePlugin(this);
             return;
         }
 
@@ -95,7 +94,7 @@ public class MusicPlayer extends JavaPlugin implements Listener {
         } catch (IOException e) {
             server = null;
             logger.error("Failed to start HTTP server", e);
-            setEnabled(false);
+            Bukkit.getPluginManager().disablePlugin(this);
             return;
         }
         logger.info("Started HTTP server");
@@ -121,6 +120,7 @@ public class MusicPlayer extends JavaPlugin implements Listener {
     }
 
     @EventHandler
+    @SuppressWarnings("UnstableApiUsage")
     public void onCommandRegistered(CommandRegisteredEvent<BukkitBrigadierCommandSource> event) {
         if (event.getCommand() == musicPlayerCommand) {
             event.setLiteral(literal(event.getCommandLabel())
