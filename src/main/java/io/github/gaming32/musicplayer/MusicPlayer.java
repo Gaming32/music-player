@@ -26,6 +26,7 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.Nullable;
+import org.slf4j.Logger;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -48,6 +49,8 @@ import java.util.stream.Stream;
 @SuppressWarnings("UnstableApiUsage")
 public class MusicPlayer extends JavaPlugin implements Listener {
     private static final Map<String, CompletableFuture<PlayerPackInfo>> PACK_INFO_CACHE = new ConcurrentHashMap<>();
+
+    private final Logger logger = getSLF4JLogger();
 
     private Path musicDir;
     private String ffmpegPath;
@@ -73,7 +76,7 @@ public class MusicPlayer extends JavaPlugin implements Listener {
         try {
             Files.createDirectories(musicDir);
         } catch (IOException e) {
-            getSLF4JLogger().error("Failed to create music-dir", e);
+            logger.error("Failed to create music-dir", e);
             setEnabled(false);
             return;
         }
@@ -84,18 +87,18 @@ public class MusicPlayer extends JavaPlugin implements Listener {
             getConfig().getString("http.host"),
             getConfig().getInt("http.port")
         );
-        getSLF4JLogger().info("Starting HTTP server on {}", address);
+        logger.info("Starting HTTP server on {}", address);
         try {
             server = HttpServer.create(address, 0);
             server.createContext("/", this::httpHandler);
             server.start();
         } catch (IOException e) {
             server = null;
-            getSLF4JLogger().error("Failed to start HTTP server", e);
+            logger.error("Failed to start HTTP server", e);
             setEnabled(false);
             return;
         }
-        getSLF4JLogger().info("Started HTTP server");
+        logger.info("Started HTTP server");
 
         baseUri = getConfig().getString("http.external-uri");
         fallbackUriHost = getConfig().getString("http.fallback-uri-host");
@@ -110,10 +113,10 @@ public class MusicPlayer extends JavaPlugin implements Listener {
     @Override
     public void onDisable() {
         if (server != null) {
-            getSLF4JLogger().info("Stopping HTTP server");
+            logger.info("Stopping HTTP server");
             server.stop(1);
             server = null;
-            getSLF4JLogger().info("HTTP server stopped");
+            logger.info("HTTP server stopped");
         }
     }
 
@@ -200,7 +203,7 @@ public class MusicPlayer extends JavaPlugin implements Listener {
             exchange.sendResponseHeaders(404, -1);
             return;
         } catch (ExecutionException e) {
-            getSLF4JLogger().error("Failed to convert PlayerPackInfo", e);
+            logger.error("Failed to convert PlayerPackInfo", e);
             exchange.sendResponseHeaders(500, -1);
             return;
         }
@@ -210,23 +213,23 @@ public class MusicPlayer extends JavaPlugin implements Listener {
     }
 
     private void checkForFfmpeg() {
-        getSLF4JLogger().info("Checking for ffmpeg installation");
+        logger.info("Checking for ffmpeg installation");
         try {
             final Process process = new ProcessBuilder(ffmpegPath, "-version")
                 .redirectError(ProcessBuilder.Redirect.INHERIT)
                 .start();
             if (process.waitFor() != 0) {
-                getSLF4JLogger().warn("ffmpeg terminated with non-zero exit code {}", process.exitValue());
+                logger.warn("ffmpeg terminated with non-zero exit code {}", process.exitValue());
             }
             try (BufferedReader reader = process.inputReader()) {
                 ffmpegVersion = reader.readLine();
             }
-            getSLF4JLogger().info("Found {}", ffmpegVersion);
+            logger.info("Found {}", ffmpegVersion);
         } catch (IOException e) {
-            getSLF4JLogger().info("ffmpeg not found. Only .ogg will be supported.", e);
+            logger.info("ffmpeg not found. Only .ogg will be supported.", e);
             ffmpegVersion = null;
         } catch (Exception e) {
-            getSLF4JLogger().error("Error checking for ffmpeg", e);
+            logger.error("Error checking for ffmpeg", e);
             ffmpegVersion = null;
         }
     }
@@ -249,7 +252,7 @@ public class MusicPlayer extends JavaPlugin implements Listener {
                 .map(path -> musicDir.relativize(path).toString().replace(path.getFileSystem().getSeparator(), "/"))
                 .collect(Collectors.toSet());
         } catch (IOException e) {
-            getSLF4JLogger().warn("Failed to populate songs list. Autocomplete may be limited.");
+            logger.warn("Failed to populate songs list. Autocomplete may be limited.");
         }
     }
 
@@ -272,7 +275,7 @@ public class MusicPlayer extends JavaPlugin implements Listener {
         }
         createPackInfo(path).handle((result, error) -> {
             if (error != null) {
-                getSLF4JLogger().error("Failed to convert music", error);
+                logger.error("Failed to convert music", error);
                 PACK_INFO_CACHE.remove(path);
                 if (sender != null) {
                     runOnMainThread(() -> sender.sendMessage(Component.text("Failed to play song. ", NamedTextColor.RED)));
@@ -362,7 +365,7 @@ public class MusicPlayer extends JavaPlugin implements Listener {
                 player.sendMessage(Component.text("Now playing " + packInfo.path(), NamedTextColor.GREEN));
             }
         } catch (Exception e) {
-            getSLF4JLogger().error("Couldn't play song {} for player {}", packInfo.path(), player, e);
+            logger.error("Couldn't play song {} for player {}", packInfo.path(), player, e);
         }
     }
 
