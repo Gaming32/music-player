@@ -8,11 +8,10 @@ import org.intellij.lang.annotations.Language;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.UUID;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
@@ -41,7 +40,7 @@ public record PlayerPackInfo(String path, UUID uuid, byte[] data, String hash) {
         }
         """;
 
-    public static PlayerPackInfo create(Path fsPath, String path) {
+    public static PlayerPackInfo create(InputStream input, String path) {
         return create(path, out -> {
             try (final ZipOutputStream zos = new ZipOutputStream(out)) {
                 zos.putNextEntry(new ZipEntry("pack.mcmeta"));
@@ -61,7 +60,7 @@ public record PlayerPackInfo(String path, UUID uuid, byte[] data, String hash) {
                 zos.closeEntry();
 
                 zos.putNextEntry(new ZipEntry("assets/music-player/sounds/" + path.length() + ".ogg"));
-                Files.copy(fsPath, zos);
+                input.transferTo(zos);
                 zos.closeEntry();
             }
         });

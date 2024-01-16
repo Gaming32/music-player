@@ -29,6 +29,7 @@ import org.jetbrains.annotations.Nullable;
 
 import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.net.InetSocketAddress;
 import java.net.URI;
@@ -291,24 +292,21 @@ public class MusicPlayer extends JavaPlugin implements Listener {
     private CompletableFuture<PlayerPackInfo> createPackInfo0(String path) {
         return CompletableFuture.supplyAsync(() -> {
             final Path sourcePath = musicDir.resolve(path).toAbsolutePath();
-            if (path.endsWith(".ogg")) {
-                // No conversion necessary
-                return PlayerPackInfo.create(sourcePath, path);
-            }
             try {
-                final Path tempFile = Files.createTempFile("music-player", ".ogg").toAbsolutePath();
-                try {
-                    tempFile.toFile().deleteOnExit();
-                } catch (UnsupportedOperationException ignored) {
+                if (path.endsWith(".ogg")) {
+                    // No conversion necessary
+                    try (InputStream is = Files.newInputStream(sourcePath)) {
+                        return PlayerPackInfo.create(is, path);
+                    }
                 }
                 final Process process = new ProcessBuilder(
-                    ffmpegPath, "-y", "-i", sourcePath.toString(), "-vn", tempFile.toString()
-                ).start();
+                    ffmpegPath, "-y", "-i", sourcePath.toString(), "-vn", "-f", "ogg", "-"
+                ).redirectError(ProcessBuilder.Redirect.DISCARD).start();
+                final PlayerPackInfo result = PlayerPackInfo.create(process.getInputStream(), path);
                 if (process.waitFor() != 0) {
-                    Files.deleteIfExists(tempFile);
                     throw new IllegalStateException("ffmpeg conversion failed with exit code " + process.exitValue());
                 }
-                return PlayerPackInfo.create(tempFile, path);
+                return result;
             } catch (RuntimeException e) {
                 throw e;
             } catch (IOException e) {
