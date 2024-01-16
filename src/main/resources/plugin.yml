@@ -11,6 +11,7 @@ commands:
   playmusic:
     description: Play an audio file
     usage: "/playmusic <path>"
+    permission: musicplayer.play
 permissions:
   musicplayer.play:
     description: If a user can play music on the server

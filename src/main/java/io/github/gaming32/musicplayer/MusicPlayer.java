@@ -118,16 +118,8 @@ public class MusicPlayer extends JavaPlugin implements Listener {
     @EventHandler
     public void onCommandRegistered(CommandRegisteredEvent<BukkitBrigadierCommandSource> event) {
         if (event.getCommand() == musicPlayerCommand) {
-            event.setLiteral(literal("musicplayer")
-                .then(literal("play")
-                    .requires(s -> s.getBukkitSender().hasPermission("musicplayer.play"))
-                    .then(argument("path", StringArgumentType.greedyString())
-                        .suggests((context, builder) -> getSongsList().thenApply(
-                            songs -> SharedSuggestionProvider.suggest(songs.stream(), builder)
-                        ))
-                        .executes(this::playMusic)
-                    )
-                )
+            event.setLiteral(literal(event.getCommandLabel())
+                .then(playCommand(literal("play")))
                 .then(literal("ffmpeg")
                     .requires(s -> s.getBukkitSender().hasPermission("musicplayer.ffmpeg"))
                     .then(literal("version")
@@ -162,11 +154,19 @@ public class MusicPlayer extends JavaPlugin implements Listener {
                 .build()
             );
         } else if (event.getCommand() == playMusicCommand) {
-            event.setLiteral(literal("playmusic")
-                .redirect(event.getRoot().getChild("musicplayer").getChild("play"))
-                .build()
-            );
+            event.setLiteral(playCommand(literal(event.getCommandLabel())).build());
         }
+    }
+
+    private LiteralArgumentBuilder<BukkitBrigadierCommandSource> playCommand(LiteralArgumentBuilder<BukkitBrigadierCommandSource> literal) {
+        return literal
+            .requires(s -> s.getBukkitSender().hasPermission("musicplayer.play"))
+            .then(argument("path", StringArgumentType.greedyString())
+                .suggests((context, builder) -> getSongsList().thenApply(
+                    songs -> SharedSuggestionProvider.suggest(songs.stream(), builder)
+                ))
+                .executes(this::playMusic)
+            );
     }
 
     private int playMusic(CommandContext<BukkitBrigadierCommandSource> context) {

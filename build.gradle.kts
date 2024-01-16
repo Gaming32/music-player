@@ -29,17 +29,13 @@ tasks.assemble {
 val runServer by tasks.registering(JavaExec::class) {
     dependsOn(tasks.jar)
 
-    doFirst {
-        file("run/plugins").listFiles(File::isFile)?.forEach(File::delete)
-        copy {
-            from(tasks.jar.get().outputs.files.singleFile)
-            into(file("run/plugins"))
-        }
-    }
-
     classpath = configurations.mojangMappedServerRuntime.get()
     mainClass = "org.bukkit.craftbukkit.Main"
     workingDir = file("run")
     standardInput = System.`in`
-    args("nogui")
+    args("nogui", "--add-plugin", tasks.jar.get().outputs.files.singleFile)
 }
+
+//afterEvaluate {
+//    println(configurations.mojangMappedServerRuntime.get().files.joinToString(File.pathSeparator))
+//}
