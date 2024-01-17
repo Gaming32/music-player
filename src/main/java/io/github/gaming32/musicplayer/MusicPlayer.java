@@ -3,6 +3,7 @@ package io.github.gaming32.musicplayer;
 import com.destroystokyo.paper.brigadier.BukkitBrigadierCommandSource;
 import com.destroystokyo.paper.event.brigadier.CommandRegisteredEvent;
 import com.google.common.base.Splitter;
+import com.google.common.base.Throwables;
 import com.google.common.net.UrlEscapers;
 import com.mojang.brigadier.arguments.ArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
@@ -20,6 +21,7 @@ import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Bukkit;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
+import org.bukkit.command.ConsoleCommandSender;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -278,7 +280,12 @@ public class MusicPlayer extends JavaPlugin implements Listener {
                 logger.error("Failed to convert music", error);
                 PACK_INFO_CACHE.remove(path);
                 if (sender != null) {
-                    runOnMainThread(() -> sender.sendMessage(Component.text("Failed to play song. ", NamedTextColor.RED)));
+                    runOnMainThread(() -> {
+                        sender.sendMessage(Component.text("Failed to play song.", NamedTextColor.RED));
+                        if (sender.isOp() && !(sender instanceof ConsoleCommandSender)) {
+                            sender.sendMessage(Component.text(Throwables.getRootCause(error).getMessage(), NamedTextColor.GOLD));
+                        }
+                    });
                 }
                 return null;
             }
@@ -303,11 +310,15 @@ public class MusicPlayer extends JavaPlugin implements Listener {
                     }
                 }
                 final Process process = new ProcessBuilder(
-                    ffmpegPath, "-y", "-i", sourcePath.toString(), "-vn", "-f", "ogg", "-"
+                    ffmpegPath, "-i", sourcePath.toString(), "-vn", "-f", "ogg", "-"
                 ).redirectError(ProcessBuilder.Redirect.DISCARD).start();
                 final PlayerPackInfo result = PlayerPackInfo.create(process.getInputStream(), path);
                 if (process.waitFor() != 0) {
-                    throw new IllegalStateException("ffmpeg conversion failed with exit code " + process.exitValue());
+                    final int exitCode = process.exitValue();
+                    if (exitCode == 1) {
+                        throw new IllegalArgumentException("ffmpeg conversion failed with generic error");
+                    }
+                    throw new IllegalStateException("ffmpeg conversion failed: " + FfmpegError.toString(process.exitValue()));
                 }
                 return result;
             } catch (RuntimeException e) {
