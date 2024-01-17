@@ -43,27 +43,42 @@ public record PlayerPackInfo(String path, UUID uuid, byte[] data, String hash) {
     public static PlayerPackInfo create(InputStream input, String path) {
         return create(path, out -> {
             try (final ZipOutputStream zos = new ZipOutputStream(out)) {
-                zos.putNextEntry(new ZipEntry("pack.mcmeta"));
+                zos.putNextEntry(entry("pack.mcmeta"));
                 zos.write(PACK_MCMETA.formatted(path).getBytes(StandardCharsets.UTF_8));
                 zos.closeEntry();
 
-                zos.putNextEntry(new ZipEntry("assets/"));
-                zos.closeEntry();
-                zos.putNextEntry(new ZipEntry("assets/music-player/"));
-                zos.closeEntry();
+                directory(zos, "assets/");
+                directory(zos, "assets/music-player/");
 
-                zos.putNextEntry(new ZipEntry("assets/music-player/sounds.json"));
+                zos.putNextEntry(entry("assets/music-player/sounds.json"));
                 zos.write(SOUNDS_JSON.formatted(path.length()).getBytes(StandardCharsets.UTF_8));
                 zos.closeEntry();
 
-                zos.putNextEntry(new ZipEntry("assets/music-player/sounds/"));
-                zos.closeEntry();
+                directory(zos, "assets/music-player/sounds/");
 
-                zos.putNextEntry(new ZipEntry("assets/music-player/sounds/" + path.length() + ".ogg"));
+                zos.putNextEntry(entry("assets/music-player/sounds/" + path.length() + ".ogg"));
                 input.transferTo(zos);
                 zos.closeEntry();
             }
         });
+    }
+
+    private static ZipEntry entry(String name) {
+        final ZipEntry entry = new ZipEntry(name);
+        entry.setTime(0L); // Deterministic zip
+        return entry;
+    }
+
+    private static void directory(ZipOutputStream zos, String name) throws IOException {
+        if (!name.endsWith("/")) {
+            throw new IllegalArgumentException("Name must end with / to be a directory");
+        }
+        final ZipEntry entry = entry(name);
+        entry.setMethod(ZipEntry.STORED);
+        entry.setSize(0L);
+        entry.setCrc(0L);
+        zos.putNextEntry(entry);
+        zos.closeEntry();
     }
 
     @SuppressWarnings({"UnstableApiUsage", "deprecation"})
